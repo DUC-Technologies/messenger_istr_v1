@@ -99,4 +99,4 @@ class ShowContact(ContactBase):
     user_id: UUID4
 
     class Config:
-        orm_mode = True
+        from_attributes = True

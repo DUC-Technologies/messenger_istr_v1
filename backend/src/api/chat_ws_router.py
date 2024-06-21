@@ -37,7 +37,7 @@ async def websocket_endpoint(
     try:
         while True:
             message = await websocket.receive_text()
-            message = f'<b>{cookie_or_token}<b>' + message
+            message = f'<b>{cookie_or_token}:</b>' + message
             await manager.push_to_chat(chat_id, message)
             if q is not None:
                 await websocket.send_text(f"Query parameter q is: {q}")

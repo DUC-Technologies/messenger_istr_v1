@@ -1,9 +1,8 @@
-import uvicorn
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-import settings
 from api import login_router
 from api import messenger_router
 from api import user_router
@@ -41,6 +40,3 @@ async def value_error_exception_handler(request: Request, exc: ValueError):
 async def internal_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"message": str(exc)})
 
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=settings.MESSENGER_APP_PORT)
