@@ -23,7 +23,8 @@ COPY pyproject.toml uv.lock /code/
 
 # Устанавливаем ТОЛЬКО основные зависимости (пропуская dev и dev_auth группы)
 # --frozen гарантирует, что uv не будет пытаться обновить lock-файл во время сборки
-RUN uv sync --frozen --no-dev
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
 
 # Копируем оставшийся код проекта
 COPY . /code
