@@ -2,9 +2,9 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from messenger.db.base_dal import AbstractMessageDAL, AbstractTopicDAL, AbstractContactDAL
+from messenger.db.base_dal import AbstractMessageDAL, AbstractTopicDAL
 from .connection import setup_database_connection
-from .models import Message, TopicsMember, UsersTopic, Topic, Contact
+from .models import Message, TopicsMember, UsersTopic, Topic
 
 setup_database_connection()
 
@@ -136,34 +136,3 @@ class ScyllaTopicDAL(AbstractTopicDAL):
             user_id=user_id,
         )
 
-
-class ScyllaContactDAL(AbstractContactDAL):
-    def create_contact(self, user_id: UUID, contact_id: UUID, nickname: str):
-        contact = Contact.create(
-            user_id=user_id,
-            contact_id=contact_id,
-            nickname=nickname
-        )
-        return contact
-
-    def get_contacts_by_user_id(self, user_id: UUID) -> Optional[Contact]:
-        return Contact.objects(user_id=user_id).all()
-
-    @staticmethod
-    def _get_contact(user_id: UUID, contact_id: UUID):
-        return Contact.objects(
-            user_id=user_id,
-            contact_id=contact_id
-        ).first()
-
-    def update_contact(self, user_id: UUID, contact_id: UUID, new_nickname: str):
-        contact = self._get_contact(user_id, contact_id)
-        if contact:
-            contact.update(nickname=new_nickname)
-            return contact
-        return None
-
-    def delete_contact(self, user_id: UUID, contact_id: UUID):
-        contact = self._get_contact(user_id, contact_id)
-        if contact:
-            contact.delete()

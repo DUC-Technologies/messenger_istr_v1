@@ -75,28 +75,3 @@ class AddUserToTopic(BaseModel):
     user_id: UUID4
     topic_id: UUID4
 
-
-class ContactBase(BaseModel):
-    contact_id: UUID4
-    nickname: str
-
-
-class ContactCreate(ContactBase):
-    user_id: UUID4
-
-
-class ContactUpdate(BaseModel):
-    contact_id: UUID4
-    nickname: str
-
-
-class ContactDelete(BaseModel):
-    user_id: UUID4
-    contact_id: UUID4
-
-
-class ShowContact(ContactBase):
-    user_id: UUID4
-
-    class Config:
-        from_attributes = True

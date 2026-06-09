@@ -2,14 +2,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends
 
-from messenger import ContactService
 from messenger import MessageService
 from messenger import TopicService
-from dependencies import get_message_service, get_topic_service, get_contact_service
+from dependencies import get_message_service, get_topic_service
 from messenger.schemas import (
     CreateMessage, ShowMessage, MessageID, UpdateMessage,
-    CreateTopic, TopicID, TopicLimit, ShowTopic, ShowTopicWithLastMessage, ShowUserOfTopic, UserID, AddUserToTopic,
-    ShowContact, ContactCreate, ContactUpdate, ContactDelete
+    CreateTopic, TopicID, TopicLimit, ShowTopic, ShowTopicWithLastMessage, ShowUserOfTopic, UserID, AddUserToTopic
 )
 
 messenger_router = APIRouter()
@@ -63,29 +61,3 @@ def get_topics_by_user(user_id: UUID, service: TopicService = Depends(get_topic_
 @messenger_router.get("/topics/{topic_id}/users", response_model=list[ShowUserOfTopic], tags=["Topic"])
 def get_users_of_topic(topic_id: UUID, service: TopicService = Depends(get_topic_service)):
     return service.get_users_of_topic(body=TopicID(topic_id=topic_id))
-
-
-@messenger_router.post("/contacts/", response_model=ShowContact, tags=["Contact"])
-def create_contact(contact: ContactCreate, service: ContactService = Depends(get_contact_service)):
-    return service.create_contact(contact)
-
-
-@messenger_router.get("/contacts/{user_id}", response_model=ShowContact, tags=["Contact"])
-def get_contact(user_id: UserID, service: ContactService = Depends(get_contact_service)):
-    contact = service.get_contacts(user_id)
-    if contact is None:
-        raise HTTPException(status_code=404, detail="Контакт не найден")
-    return contact
-
-
-@messenger_router.put("/contacts/{user_id}", response_model=ShowContact, tags=["Contact"])
-def update_contact(contact: ContactUpdate, service: ContactService = Depends(get_contact_service)):
-    updated_contact = service.update_contact(contact)
-    if updated_contact is None:
-        raise HTTPException(status_code=404, detail="Контакт не найден")
-    return updated_contact
-
-
-@messenger_router.put("/contacts/{user_id}", tags=["Contact"])
-def delete_contact(contact: ContactDelete, service: ContactService = Depends(get_contact_service)):
-    service.delete_contact(contact)

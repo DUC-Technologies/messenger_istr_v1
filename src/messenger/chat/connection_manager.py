@@ -1,4 +1,3 @@
-import json
 from fastapi.encoders import jsonable_encoder
 from fastapi import WebSocket
 

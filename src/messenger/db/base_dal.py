@@ -1,8 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 from uuid import UUID
-
-from messenger.db.scylladb_sync.models import Contact
 
 
 class AbstractMessageDAL(ABC):
@@ -99,22 +96,3 @@ class AbstractTopicDAL(ABC):
             topic_id: UUID,
             user_id: UUID,
     ): pass
-
-
-class AbstractContactDAL:
-
-    @abstractmethod
-    def create_contact(self, user_id: UUID, contact_id: UUID, nickname: str):
-        pass
-
-    @abstractmethod
-    def get_contacts_by_user_id(self, user_id: UUID) -> Optional[Contact]:
-        pass
-
-    @abstractmethod
-    def update_contact(self, user_id: UUID, contact_id: UUID, new_nickname: str):
-        pass
-
-    @abstractmethod
-    def delete_contact(self, user_id: UUID, contact_id: UUID):
-        pass

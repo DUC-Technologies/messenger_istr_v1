@@ -40,10 +40,3 @@ class Topic(BaseScyllaModel):
     topic_id = columns.UUID(primary_key=True)
     title = columns.Text()
     topic_type = columns.TinyInt()
-
-
-class Contact(BaseScyllaModel):
-    __table_name__ = 'contact'
-    user_id = columns.UUID(primary_key=True)
-    contact_id = columns.UUID()
-    nickname = columns.Text()
