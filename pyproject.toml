@@ -16,6 +16,7 @@ dependencies = [
     "scylla-driver>=3.26.8",
     "envparse>=0.2.0",
     "websockets>=12.0",
+    "alembic>=1.18.4",
 ]
 
 # Группы для разработки (стандарт PEP 735, поддерживаемый uv)
