@@ -12,10 +12,10 @@ app = FastAPI(
     title='Messenger'
 )
 
-# app.include_router(messenger_router, prefix="/messenger")
-app.include_router(chat_ws_router, prefix="/messenger", tags=["chat"])
-# app.include_router(user_router, prefix="/user", tags=["user"])
-# app.include_router(login_router, prefix="/login", tags=["login"])
+app.include_router(messenger_router, prefix="/messenger")
+# app.include_router(chat_ws_router, prefix="/messenger", tags=["chat"])
+app.include_router(user_router, prefix="/user", tags=["user"])
+app.include_router(login_router, prefix="/login", tags=["login"])
 
 origins = ['*']
 app.add_middleware(

@@ -1,4 +1,3 @@
-import json
 import uuid
 from datetime import datetime
 
@@ -12,7 +11,6 @@ from fastapi import (
 )
 from fastapi.responses import HTMLResponse
 from starlette.websockets import WebSocketDisconnect
-from json import dumps
 
 from messenger.chat.connection_manager import ConnectionManager
 from messenger.chat.html_stub_dev import get_html_stub_chat_dev

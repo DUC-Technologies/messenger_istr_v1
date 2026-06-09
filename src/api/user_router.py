@@ -19,7 +19,7 @@ from auth.schemas import UpdateUserRequest
 from auth.schemas import UpdatedUserResponse
 from auth.schemas import UserCreate
 from auth.models import User
-from auth.session import get_db
+from database.session import get_db
 
 logger = getLogger(__name__)
 

@@ -6,7 +6,7 @@ class AbstractMessageDAL(ABC):
     """Data Access Layer for operating message info"""
 
     @abstractmethod
-    def create_message(
+    async def create_message(
             self,
             topic_id: UUID,
             message_id: UUID,
@@ -17,7 +17,7 @@ class AbstractMessageDAL(ABC):
         pass
 
     @abstractmethod
-    def get_message_by_id(
+    async def get_message_by_id(
             self,
             topic_id: UUID,
             message_id: UUID,
@@ -25,7 +25,7 @@ class AbstractMessageDAL(ABC):
         pass
 
     @abstractmethod
-    def update_message(
+    async def update_message(
             self,
             topic_id: UUID,
             message_id: UUID,
@@ -34,7 +34,7 @@ class AbstractMessageDAL(ABC):
         pass
 
     @abstractmethod
-    def delete_message(
+    async def delete_message(
             self,
             topic_id: UUID,
             message_id: UUID,
@@ -46,7 +46,7 @@ class AbstractTopicDAL(ABC):
     """Data Access Layer for operating topic info"""
 
     @abstractmethod
-    def create_topic(
+    async def create_topic(
             self,
             topic_id: UUID,
             title: str,
@@ -55,7 +55,7 @@ class AbstractTopicDAL(ABC):
         pass
 
     @abstractmethod
-    def get_last_messages_of_topic(
+    async def get_last_messages_of_topic(
             self,
             topic_id: UUID,
             limit: int = 30,
@@ -63,36 +63,36 @@ class AbstractTopicDAL(ABC):
         pass
 
     @abstractmethod
-    def get_topics_by_user(
+    async def get_topics_by_user(
             self,
             user_id: UUID,
     ):
         pass
 
-    @abstractmethod
-    def get_users_of_topic(
-            self,
-            topic_id: UUID,
-    ):
-        pass
+    # @abstractmethod
+    # async def get_users_of_topic(
+    #         self,
+    #         topic_id: UUID,
+    # ):
+    #     pass
 
-    @abstractmethod
-    def get_topic_by_id(
-            self,
-            topic_id: UUID,
-    ):
-        pass
+    # @abstractmethod
+    # async def get_topic_by_id(
+    #         self,
+    #         topic_id: UUID,
+    # ):
+    #     pass
 
-    @abstractmethod
-    def delete_topic(
-            self,
-            topic_id: UUID,
-    ):
-        pass
+    # @abstractmethod
+    # async def delete_topic(
+    #         self,
+    #         topic_id: UUID,
+    # ):
+    #     pass
 
-    @abstractmethod
-    def add_user_to_topic(
-            self,
-            topic_id: UUID,
-            user_id: UUID,
-    ): pass
+    # @abstractmethod
+    # async def add_user_to_topic(
+    #         self,
+    #         topic_id: UUID,
+    #         user_id: UUID,
+    # ): pass
