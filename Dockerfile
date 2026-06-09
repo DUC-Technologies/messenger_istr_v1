@@ -1,37 +1,34 @@
+# Используем официальный образ python
 FROM python:3.12-slim
 
-ENV DATABASE_URL='postgresql://{postgres}:{admin}@{localhost}:{5432}/{postgres}'\
-  PYTHONFAULTHANDLER=1 \
-  PYTHONUNBUFFERED=1 \
-  PYTHONHASHSEED=random \
-  PIP_NO_CACHE_DIR=off \
-  PIP_DISABLE_PIP_VERSION_CHECK=on \
-  PIP_DEFAULT_TIMEOUT=100 \
-  # Poetry's configuration:
-  POETRY_NO_INTERACTION=1 \
-  POETRY_VIRTUALENVS_CREATE=false \
-  POETRY_CACHE_DIR='/var/cache/pypoetry' \
-  POETRY_HOME='/usr/local'\
-  POETRY_VERSION=1.7.1
+# Копируем бинарник uv из официального образа astral-sh
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+# Настройки Python и uv
+ENV PYTHONFAULTHANDLER=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_SYSTEM_PYTHON=1 \
+    DATABASE_URL='postgresql://{postgres}:{admin}@{localhost}:{5432}/{postgres}'
+
+# Устанавливаем системные зависимости, если они нужны (например, для psycopg2 или scylla-driver)
 RUN apt-get update && \
-    apt-get install -y curl&& \
-    apt-get clean
+    apt-get install -y --no-install-recommends curl libpq-dev gcc && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Установка Poetry через curl
-RUN curl -sSL https://install.python-poetry.org | python3 -
-
-# Копирование только файлов с зависимостями для кэширования в слое Docker
 WORKDIR /code
-COPY poetry.lock pyproject.toml /code/
 
-# Инициализация проекта:
-RUN poetry install --no-interaction --no-ansi
+# Копируем файлы зависимостей для кэширования слоев Docker
+COPY pyproject.toml uv.lock /code/
 
-# Создание папок и файлов для проекта:
+# Устанавливаем ТОЛЬКО основные зависимости (пропуская dev и dev_auth группы)
+# --frozen гарантирует, что uv не будет пытаться обновить lock-файл во время сборки
+RUN uv sync --frozen --no-dev
+
+# Копируем оставшийся код проекта
 COPY . /code
 
-
-
 EXPOSE 81
+
+# Запуск приложения
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "81"]
