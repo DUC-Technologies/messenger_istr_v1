@@ -13,7 +13,7 @@ class ContactService:
         return self.dal.get_contacts_by_user_id(body.user_id)
 
     def update_contact(self, body: ContactUpdate):
-        return self.dal.update_contact(body.user_id, body.contact_id, body.nickname)
+        return self.dal.update_contact(body.contact_id, body.contact_id, body.nickname)
 
     def delete_contact(self, body: ContactDelete):
         self.dal.delete_contact(body.user_id, body.contact_id)

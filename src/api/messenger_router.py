@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends
 from messenger import ContactService
 from messenger import MessageService
 from messenger import TopicService
-from messenger.dependencies import get_message_service, get_topic_service, get_contact_service
+from dependencies import get_message_service, get_topic_service, get_contact_service
 from messenger.schemas import (
     CreateMessage, ShowMessage, MessageID, UpdateMessage,
     CreateTopic, TopicID, TopicLimit, ShowTopic, ShowTopicWithLastMessage, ShowUserOfTopic, UserID, AddUserToTopic,

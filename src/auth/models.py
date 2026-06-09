@@ -5,11 +5,10 @@ from sqlalchemy import Column
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import declarative_base
 
+from database.session import Base
 from .schemas import PortalRole
 
-Base = declarative_base()
 
 
 class User(Base):

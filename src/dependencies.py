@@ -1,7 +1,7 @@
 from messenger.db import ScyllaMessageDAL, ScyllaTopicDAL
 from messenger.db.scylladb_sync.dal import ScyllaContactDAL
-from .services import MessageService, TopicService
-from .services.contact_service import ContactService
+from .messenger.services import MessageService, TopicService
+from .messenger.services.contact_service import ContactService
 
 
 def get_message_service() -> MessageService:
