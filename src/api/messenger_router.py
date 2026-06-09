@@ -37,7 +37,7 @@ def delete_message(topic_id: UUID, message_id: UUID, service: MessageService = D
 
 @messenger_router.post("/topics/", response_model=ShowTopic, tags=["Topic"])
 def create_topic(topic_data: CreateTopic = Body(...), service: TopicService = Depends(get_topic_service)):
-    return service.create_topic(body=topic_data)
+    return service.delete_topic(body=topic_data)
 
 
 @messenger_router.delete("/topics/", tags=["Topic"])
@@ -71,11 +71,10 @@ def create_contact(contact: ContactCreate, service: ContactService = Depends(get
 
 
 @messenger_router.get("/contacts/{user_id}", response_model=ShowContact, tags=["Contact"])
-def get_contact(user: UserID, service: ContactService = Depends(get_contact_service)):
-    contact = service.get_contacts(user)
+def get_contact(user_id: UserID, service: ContactService = Depends(get_contact_service)):
+    contact = service.get_contacts(user_id)
     if contact is None:
-        # TODO: make a fastapi exceptions
-        raise Exception
+        raise HTTPException(status_code=404, detail="Контакт не найден")
     return contact
 
 
@@ -83,8 +82,7 @@ def get_contact(user: UserID, service: ContactService = Depends(get_contact_serv
 def update_contact(contact: ContactUpdate, service: ContactService = Depends(get_contact_service)):
     updated_contact = service.update_contact(contact)
     if updated_contact is None:
-        # TODO: make a fastapi exceptions
-        raise Exception
+        raise HTTPException(status_code=404, detail="Контакт не найден")
     return updated_contact
 
 
