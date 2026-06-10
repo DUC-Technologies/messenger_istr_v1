@@ -45,10 +45,10 @@ async def websocket_endpoint(
     try:
         while True:
             data = await websocket.receive_json()
-            user = await get_user_from_token(cookie_or_token)  # Получение user_id из токена
+            user = await get_user_from_token(cookie_or_token)
 
             received_message = ReceivedMessage(
-                id=str(uuid.uuid4()),  # Генерация уникального ID
+                id=str(uuid.uuid4()),
                 chat_id=chat_id,
                 sender_id=user,
                 timestamp=datetime.utcnow(),
