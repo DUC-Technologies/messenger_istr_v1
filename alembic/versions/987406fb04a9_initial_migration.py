@@ -1,18 +1,18 @@
 """initial_migration
 
-Revision ID: cf7c080fa50c
+Revision ID: 987406fb04a9
 Revises: 
-Create Date: 2026-06-09 21:35:42.518408
+Create Date: 2026-06-10 15:10:24.378672
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+
 
 # revision identifiers, used by Alembic.
-revision: str = 'cf7c080fa50c'
+revision: str = '987406fb04a9'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,7 +24,7 @@ def upgrade() -> None:
     op.create_table('topics',
     sa.Column('topic_id', sa.UUID(), nullable=False),
     sa.Column('title', sa.String(length=255), nullable=False),
-    sa.Column('topic_type', sa.Integer(), nullable=False),
+    sa.Column('topic_type', sa.Integer(), nullable=True),
     sa.PrimaryKeyConstraint('topic_id')
     )
     op.create_table('users',
@@ -33,9 +33,9 @@ def upgrade() -> None:
     sa.Column('name', sa.String(), nullable=True),
     sa.Column('surname', sa.String(), nullable=True),
     sa.Column('email', sa.String(), nullable=False),
-    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('hashed_password', sa.String(), nullable=False),
-    sa.Column('roles', postgresql.ARRAY(sa.String()), nullable=False),
+    sa.Column('roles', sa.ARRAY(sa.String()), nullable=False),
     sa.PrimaryKeyConstraint('user_id'),
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('username')
@@ -47,7 +47,6 @@ def upgrade() -> None:
     sa.Column('author_id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('is_edited', sa.Boolean(), nullable=False),
-    sa.Column('has_attachment', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['topic_id'], ['topics.topic_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('message_id')
     )

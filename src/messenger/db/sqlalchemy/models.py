@@ -11,7 +11,7 @@ class Topic(Base):
 
     topic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    topic_type: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    topic_type: Mapped[int] = mapped_column(Integer, nullable=True, default=1)
 
     messages = relationship("Message", back_populates="topic", cascade="all, delete-orphan")
 
@@ -33,7 +33,7 @@ class Message(Base):
         index=True
     )
     is_edited: Mapped[bool] = mapped_column(Boolean, default=False)
-    has_attachment: Mapped[bool] = mapped_column(Boolean, default=False)
+    # has_attachment: Mapped[bool] = mapped_column(Boolean, default=False)
 
     topic = relationship("Topic", back_populates="messages")
     

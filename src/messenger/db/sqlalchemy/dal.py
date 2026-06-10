@@ -66,7 +66,7 @@ class SQLAlchemyTopicDAL(AbstractTopicDAL):
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
-    async def create_topic(self, topic_id: uuid.UUID, title: str, topic_type: int) -> Topic:
+    async def create_topic(self, topic_id: uuid.UUID, title: str, topic_type: str) -> Topic:
         new_topic = Topic(
             topic_id=topic_id,
             title=title,

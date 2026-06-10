@@ -50,7 +50,7 @@ class AbstractTopicDAL(ABC):
             self,
             topic_id: UUID,
             title: str,
-            topic_type: str,
+            topic_type: str|None,
     ):
         pass
 

@@ -17,23 +17,23 @@ class AbstractUserDAL(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def create_user(self, username, name, surname, email, hashed_password, roles):
+    async def create_user(self, username, name, surname, email, hashed_password, roles):
         pass
 
     @abstractmethod
-    def delete_user(self, user_id):
+    async def delete_user(self, user_id):
         pass
 
     @abstractmethod
-    def get_user_by_id(self, user_id):
+    async def get_user_by_id(self, user_id):
         pass
 
     @abstractmethod
-    def get_user_by_email(self, email):
+    async def get_user_by_email(self, email):
         pass
 
     @abstractmethod
-    def update_user(self, user_id, kwargs):
+    async def update_user(self, user_id, kwargs):
         pass
 
 
@@ -72,23 +72,17 @@ class SQLAlchemyUserDAL(AbstractUserDAL):
             .returning(User.user_id)
         )
         res = await self.db_session.execute(query)
-        deleted_user_id_row = res.fetchone()
-        if deleted_user_id_row is not None:
-            return deleted_user_id_row[0]
+        return res.scalar_one_or_none()
 
     async def get_user_by_id(self, user_id: UUID) -> Union[User, None]:
         query = select(User).where(User.user_id == user_id)
         res = await self.db_session.execute(query)
-        user_row = res.fetchone()
-        if user_row is not None:
-            return user_row[0]
+        return res.scalars().first()
 
     async def get_user_by_email(self, email: str) -> Union[User, None]:
         query = select(User).where(User.email == email)
         res = await self.db_session.execute(query)
-        user_row = res.fetchone()
-        if user_row is not None:
-            return user_row[0]
+        return res.scalars().first()
 
     async def update_user(self, user_id: UUID, **kwargs) -> Union[UUID, None]:
         query = (
@@ -98,6 +92,5 @@ class SQLAlchemyUserDAL(AbstractUserDAL):
             .returning(User.user_id)
         )
         res = await self.db_session.execute(query)
-        update_user_id_row = res.fetchone()
-        if update_user_id_row is not None:
-            return update_user_id_row[0]
+        return res.scalar_one_or_none()
+    
