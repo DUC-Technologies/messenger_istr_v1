@@ -8,14 +8,14 @@ class MessageService:
     def __init__(self, dal: AbstractMessageDAL):
         self.dal = dal
 
-    async def create_message(self, body: CreateMessage):
+    async def send_message_to_bot(self, author_id, text):
         message_id = uuid4()
         return await self.dal.create_message(
-            topic_id=body.topic_id,
+            topic_id=author_id,
             message_id=message_id,
-            text=body.text,
-            author_id=body.author_id,
-            has_attachment=body.has_attachment,
+            text=text,
+            author_id=author_id,
+            has_attachment=False,
         )
 
     async def get_message_by_id(self, body: MessageID):
