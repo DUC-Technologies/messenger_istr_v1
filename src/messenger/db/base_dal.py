@@ -1,9 +1,14 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class AbstractMessageDAL(ABC):
     """Data Access Layer for operating message info"""
+    
+    
+    def __init__(self, db_session: AsyncSession):
+        self.db_session = db_session
 
     @abstractmethod
     async def create_message(
@@ -50,7 +55,7 @@ class AbstractTopicDAL(ABC):
             self,
             topic_id: UUID,
             title: str,
-            topic_type: str|None,
+            topic_type: str|None = None,
     ):
         pass
 
