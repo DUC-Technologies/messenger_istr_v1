@@ -7,8 +7,9 @@ from messenger.services import MessageService, TopicService
 
 
 def get_message_service(db: AsyncSession = Depends(get_db)) -> MessageService:
-    dal = SQLAlchemyMessageDAL(db_session=db)
-    return MessageService(dal=dal)
+    message_dal = SQLAlchemyMessageDAL(db_session=db)
+    topic_dal = SQLAlchemyTopicDAL(db_session=db)
+    return MessageService(message_dal=message_dal, topic_dal=topic_dal)
 
 
 def get_topic_service(db: AsyncSession = Depends(get_db)) -> TopicService:

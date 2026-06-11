@@ -7,6 +7,7 @@ import redis.asyncio as aioredis
 from auth.models import User
 from auth.services.auth import get_current_user_from_token
 from bot_engine import Dispatcher, MessageContext, CallbackContext
+from dependencies import get_message_service
 from survey.presenter import ScreenPayload
 
 bot_router = APIRouter(prefix="/bot", tags=["bot"])
@@ -99,7 +100,7 @@ async def handle_message(
         extra={
             "redis": _redis_client,
             "reply": reply_fn,
-            "message_service": get_message_service(db),
+            "message_service": get_message_service(),
         },
     )
     await _dispatcher.dispatch(ctx)

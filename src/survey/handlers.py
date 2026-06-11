@@ -140,7 +140,7 @@ async def on_submit(ctx: CallbackContext):
 
     final_results = _build_final_results(session)
 
-    user_dir = Path("result_file_renderer/results") / str(user_id)
+    user_dir = Path("src/result_file_renderer/results") / str(user_id)
     user_dir.mkdir(parents=True, exist_ok=True)
     answers_json_path = user_dir / "answers.json"
 
@@ -151,8 +151,8 @@ async def on_submit(ctx: CallbackContext):
         result = await asyncio.to_thread(
             generate_management_index_report,
             answers_path=answers_json_path,
-            methodology_path=Path("result_file_renderer/template.xlsx"),
-            template_pptx_path=Path("result_file_renderer/template.pptx"),
+            methodology_path=Path("src/result_file_renderer/template.xlsx"),
+            template_pptx_path=Path("src/result_file_renderer/template.pptx"),
             output_dir=user_dir,
             base_name="report",
             study_url="https://yandex.ru",
