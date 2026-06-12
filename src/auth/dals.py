@@ -17,7 +17,7 @@ class AbstractUserDAL(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def create_user(self, username, name, surname, email, hashed_password, roles):
+    async def create_user(self, email, hashed_password, roles):
         pass
 
     @abstractmethod
@@ -45,17 +45,12 @@ class SQLAlchemyUserDAL(AbstractUserDAL):
 
     async def create_user(
             self,
-            username: str,
-            name: str,
-            surname: str,
             email: str,
             hashed_password: str,
             roles: list[PortalRole],
     ) -> User:
         new_user = User(
-            username=username,
-            name=name,
-            surname=surname,
+            username=email,
             email=email,
             hashed_password=hashed_password,
             roles=roles,
@@ -85,6 +80,9 @@ class SQLAlchemyUserDAL(AbstractUserDAL):
         return res.scalars().first()
 
     async def update_user(self, user_id: UUID, **kwargs) -> Union[UUID, None]:
+        if "email" in kwargs:
+            kwargs["username"] = kwargs["email"]
+
         query = (
             update(User)
             .where(and_(User.user_id == user_id, User.is_active == True))
