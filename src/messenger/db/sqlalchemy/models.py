@@ -2,7 +2,7 @@ import datetime
 import uuid
 from typing import Any
 from sqlalchemy import UUID, String, Integer, Text, DateTime, ForeignKey, Boolean
-from sqlalchemy.dialects.postgresql import JSONB 
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.session import Base
@@ -23,19 +23,21 @@ class Message(Base):
 
     message_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     topic_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), 
-        ForeignKey("topics.topic_id", ondelete="CASCADE"), 
-        nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("topics.topic_id", ondelete="CASCADE"),
+        nullable=False,
     )
     text: Mapped[str] = mapped_column(Text, nullable=False)
     author_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, 
-        default=datetime.datetime.utcnow, 
-        index=True
+        DateTime,
+        default=datetime.datetime.utcnow,
+        index=True,
     )
     is_edited: Mapped[bool] = mapped_column(Boolean, default=False)
+
     buttons: Mapped[list[list[dict[str, Any]]] | None] = mapped_column(JSONB, nullable=True)
+    attachments: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
 
     topic = relationship("Topic", back_populates="messages")
     

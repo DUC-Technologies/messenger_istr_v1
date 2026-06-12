@@ -1,4 +1,4 @@
-import asyncio
+import uuid
 from typing import Any, Optional
 
 from survey.models import SurveyScreen, Question, UserSession
@@ -15,7 +15,6 @@ def parse_survey_data(raw_data: list[dict[str, Any]]) -> list[SurveyScreen]:
 
 
 def build_screen_payloads(session: UserSession) -> list[ScreenPayload]:
-    """Builds all ScreenPayload objects for the current block."""
     screen = session.current_screen
     start_global_idx = sum(len(s.questions) for s in session.screens[:session.current_screen_idx]) + 1
 
@@ -34,16 +33,17 @@ def build_screen_payloads(session: UserSession) -> list[ScreenPayload]:
     return payloads
 
 
-async def get_user_session(redis_client, user_id: int) -> Optional[UserSession]:
+async def get_user_session(redis_client, user_id: uuid.UUID) -> Optional[UserSession]:
     data = await redis_client.get(f"session:{user_id}")
     if not data:
         return None
     return UserSession.from_json(data.decode() if isinstance(data, bytes) else data)
 
 
-async def save_user_session(redis_client, user_id: int, session: UserSession) -> None:
+async def save_user_session(redis_client, user_id: uuid.UUID, session: UserSession) -> None:
     await redis_client.set(f"session:{user_id}", session.to_json(), ex=86400)
 
 
-async def delete_user_session(redis_client, user_id: int) -> None:
+async def delete_user_session(redis_client, user_id: uuid.UUID) -> None:
     await redis_client.delete(f"session:{user_id}")
+    

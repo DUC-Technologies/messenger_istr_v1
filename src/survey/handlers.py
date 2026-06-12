@@ -1,10 +1,9 @@
 import asyncio
 import json
-import shutil
+import uuid
 from pathlib import Path
 
-from bot_engine import Router, Text, Command, Callback, MessageContext, CallbackContext
-from messenger.services.message_service import MessageService
+from bot_engine import Router, Text, Callback, MessageContext, CallbackContext
 from survey.models import UserSession
 from survey.services import (
     parse_survey_data,
@@ -15,10 +14,10 @@ from survey.services import (
 )
 from .config import INPUT_SURVEY_DATA, SCORE_MAP
 from result_file_renderer.pdf import generate_management_index_report
+from infra.s3_storage import S3StorageService, make_report_object_key
+import settings
 
 router = Router()
-
-WELCOME_TEXTS = {"привет", "начать", "старт", "меню", "здравствуйте", "начать тест", "старт"}
 
 
 @router.message(Text("привет", "начать", "старт", "меню", "здравствуйте", "начать тест"))
@@ -29,7 +28,7 @@ async def on_welcome(ctx: MessageContext):
     )
 
 
-@router.message(Text("🚀 Начать тест"))
+@router.message(Text("🚀 начать тест"))
 @router.callback(Callback(act="start"))
 async def on_start_survey(ctx: MessageContext | CallbackContext):
     redis = ctx.extra["redis"]
@@ -38,7 +37,6 @@ async def on_start_survey(ctx: MessageContext | CallbackContext):
 
     old_session = await get_user_session(redis, user_id)
     if old_session:
-        # Чистим старую сессию — новый старт
         await delete_user_session(redis, user_id)
 
     screens = parse_survey_data(INPUT_SURVEY_DATA)
@@ -76,7 +74,6 @@ async def on_select(ctx: CallbackContext):
     session.results[q_id] = opt_idx
     await save_user_session(redis, user_id, session)
 
-    # Возвращаем обновлённые payload'ы текущего блока — фронтенд перерисовывает кнопки
     payloads = build_screen_payloads(session)
     await ctx.extra["reply"](text=None, buttons=None, screen_payloads=payloads)
 
@@ -122,6 +119,7 @@ async def on_prev(ctx: CallbackContext):
 async def on_submit(ctx: CallbackContext):
     redis = ctx.extra["redis"]
     reply = ctx.extra["reply"]
+    s3_service: S3StorageService = ctx.extra["s3_service"]
     user_id = ctx.user_id
 
     session = await get_user_session(redis, user_id)
@@ -140,58 +138,61 @@ async def on_submit(ctx: CallbackContext):
 
     final_results = _build_final_results(session)
 
-    user_dir = Path("src/result_file_renderer/results") / str(user_id)
-    user_dir.mkdir(parents=True, exist_ok=True)
-    answers_json_path = user_dir / "answers.json"
-
-    with open(answers_json_path, "w", encoding="utf-8") as f:
-        json.dump(final_results, f, ensure_ascii=False, indent=4)
-
-    try:
-        result = await asyncio.to_thread(
-            generate_management_index_report,
-            answers_path=answers_json_path,
-            methodology_path=Path("src/result_file_renderer/template.xlsx"),
-            template_pptx_path=Path("src/result_file_renderer/template.pptx"),
-            output_dir=user_dir,
-            base_name="report",
-            study_url="https://yandex.ru",
-            export_pdf=True,
-            sheet_name=None,
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        answers_json_path = tmp_path / "answers.json"
+        answers_json_path.write_text(
+            json.dumps(final_results, ensure_ascii=False, indent=4),
+            encoding="utf-8",
         )
 
-        if not (result and result.pdf_path and Path(result.pdf_path).exists()):
-            raise FileNotFoundError("PDF-файл не сгенерирован.")
+        try:
+            result = await asyncio.to_thread(
+                generate_management_index_report,
+                answers_path=answers_json_path,
+                methodology_path=Path("src/result_file_renderer/template.xlsx"),
+                template_pptx_path=Path("src/result_file_renderer/template.pptx"),
+                output_dir=tmp_path,
+                base_name="report",
+                study_url="https://yandex.ru",
+                export_pdf=True,
+                sheet_name=None,
+            )
 
-        await reply(
-            text=(
-                f"🎉 Тестирование завершено!\n\n"
-                f"📊 Общая средняя оценка: {result.overall_average:.2f}\n\n"
-                f"Развернутый отчёт с топ-5 сильных сторон и рекомендациями прикреплён ниже."
-            ),
-            buttons=[],
-            attachment=str(result.pdf_path),
-        )
+            if not (result and result.pdf_path and Path(result.pdf_path).exists()):
+                raise FileNotFoundError("PDF-файл не сгенерирован.")
 
-    except Exception as e:
-        print(f"❌ Ошибка генерации PDF для пользователя {user_id}: {e}")
-        await reply(
-            text="⚠️ Произошла ошибка при формировании отчёта. Попробуйте позже.",
-            buttons=[],
-        )
-    finally:
-        if user_dir.exists():
-            shutil.rmtree(user_dir)
-        await delete_user_session(redis, user_id)
+            pdf_bytes = Path(result.pdf_path).read_bytes()
+            object_key = make_report_object_key(user_id)
+            await s3_service.upload_file(
+                bucket=settings.S3_BUCKET_REPORTS,
+                object_key=object_key,
+                file_bytes=pdf_bytes,
+                content_type="application/pdf",
+            )
 
+            await reply(
+                text=(
+                    f"🎉 Тестирование завершено!\n\n"
+                    f"📊 Общая средняя оценка: {result.overall_average:.2f}\n\n"
+                    f"Развернутый отчёт с топ-5 сильных сторон и рекомендациями прикреплён ниже."
+                ),
+                buttons=[],
+                attachment_object_key=object_key,
+                attachment_file_name="report.pdf",
+                attachment_content_type="application/pdf",
+            )
 
-@router.message()
-async def on_any_message(ctx: MessageContext):
-    message_service: MessageService = ctx.extra["message_service"]
-    await message_service.send_message_to_bot(
-        author_id=ctx.user_id,
-        text=ctx.text,
-    )
+        except Exception as e:
+            print(f"❌ Ошибка генерации PDF для пользователя {user_id}: {e}")
+            await reply(
+                text="⚠️ Произошла ошибка при формировании отчёта. Попробуйте позже.",
+                buttons=[],
+            )
+        finally:
+            await delete_user_session(redis, user_id)
+
 
 # --- helpers ---
 

@@ -1,222 +1,162 @@
-import datetime
 import uuid
-from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from sqlalchemy import select
+from typing import Optional
+
+from fastapi import APIRouter, Depends
 import redis.asyncio as aioredis
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.models import User
 from auth.services.auth import get_current_user_from_token
 from bot_engine import Dispatcher, MessageContext, CallbackContext
-from dependencies import get_message_service, get_topic_service
-from messenger.services.topic_service import TopicService
+from dependencies import get_message_service
+from messenger.schemas.bot import (
+    UserMessageCreate,
+    UserCallbackTrigger,
+    BotReplyMessage,
+    BotSyncResponse,
+    MessageResponse,
+    InlineButton,
+)
+from messenger.services.message_service import MessageService
 from survey.presenter import ScreenPayload
-from database.session import get_db
-from messenger.db.sqlalchemy.models import Topic 
 
 bot_router = APIRouter(prefix="/bot", tags=["bot"])
 
 _redis_client: aioredis.Redis | None = None
 _dispatcher: Dispatcher | None = None
+_s3_service = None  # S3StorageService — тип не импортируем здесь, чтобы избежать циклов
 
 BOT_AUTHOR_ID = uuid.UUID("9e31a6e6-7af8-44d5-aca2-f1224fd80061")
 
 
-def init_bot(dispatcher: Dispatcher, redis_client: aioredis.Redis) -> None:
-    """Called once at application startup."""
-    global _dispatcher, _redis_client
+def init_bot(dispatcher: Dispatcher, redis_client: aioredis.Redis, s3_service) -> None:
+    global _dispatcher, _redis_client, _s3_service
     _dispatcher = dispatcher
     _redis_client = redis_client
+    _s3_service = s3_service
 
 
-class IncomingMessage(BaseModel):
-    text: str
-
-
-class IncomingCallback(BaseModel):
-    payload: dict[str, Any]
-
-
-class ButtonSchema(BaseModel):
-    label: str
-    payload: dict[str, Any]
-    selected: bool = False
-
-
-class MessageSchema(BaseModel):
-    message_id: uuid.UUID
-    text: str
-    buttons: list[list[ButtonSchema]] = []
-    attachment_url: str | None = None
-
-
-class BotResponse(BaseModel):
-    messages: list[MessageSchema]
-    
-class BotHistoryMessageSchema(BaseModel):
-    message_id: uuid.UUID
-    text: str
-    author_id: uuid.UUID
-    created_at: datetime.datetime
-    buttons: list[list[ButtonSchema]] | None = []
-    attachment_url: str | None = None
-
-
-async def ensure_topic_exists(db: AsyncSession, user_id: uuid.UUID) -> None:
-    """Гарантирует наличие топика (чата) в БД перед вставкой сообщений."""
-    query = select(Topic).where(Topic.topic_id == user_id)
-    res = await db.execute(query)
-    topic = res.scalar_one_or_none()
-    if not topic:
-        new_topic = Topic(
-            topic_id=user_id,
-            title=f"Chat with User {user_id}",
-            topic_type=1
-        )
-        db.add(new_topic)
-        await db.flush()
-        
-        
-async def save_bot_responses(
-    db: AsyncSession, 
-    message_service: Any, 
-    user_id: uuid.UUID, 
-    messages: list[MessageSchema]
-) -> None:
-    """Вспомогательная функция для сохранения пачки ответов бота в БД"""
-    for msg in messages:
-        raw_buttons = (
-            [[btn.model_dump() for btn in row] for row in msg.buttons] 
-            if msg.buttons else None
-        )
-        await message_service.message_dal.create_message(
-            topic_id=user_id,
-            message_id=msg.message_id,
-            text=msg.text,
-            author_id=BOT_AUTHOR_ID,
-            buttons=raw_buttons 
-        )
-
-
-def _make_reply_collector() -> tuple[list[MessageSchema], Any]:
-    """Накапливает схемы сообщений, автоматически генерируя им UUID."""
-    messages: list[MessageSchema] = []
+def _make_reply_collector() -> tuple[list[BotReplyMessage], any]:
+    """
+    Возвращает список накопленных ответов бота и функцию reply для хэндлеров.
+    Хэндлеры вызывают reply(...), роутер затем передаёт список в MessageService.
+    """
+    replies: list[BotReplyMessage] = []
 
     async def reply(
         text: str | None = None,
         buttons: list[list[dict]] | None = None,
         screen_payloads: list[ScreenPayload] | None = None,
-        attachment_url: str | None = None,
+        attachment_object_key: str | None = None,
+        attachment_file_name: str | None = None,
+        attachment_content_type: str | None = None,
     ) -> None:
         if screen_payloads is not None:
             for sp in screen_payloads:
-                messages.append(MessageSchema(
-                    message_id=uuid.uuid4(),  # Генерируем уникальный ID для каждого блока
+                replies.append(BotReplyMessage(
+                    message_id=uuid.uuid4(),
                     text=sp.text,
                     buttons=[
-                        [ButtonSchema(label=b.label, payload=b.payload, selected=b.selected) for b in row]
+                        [InlineButton(label=b.label, payload=b.payload, selected=b.selected) for b in row]
                         for row in sp.buttons
                     ],
                 ))
         else:
-            messages.append(MessageSchema(
-                message_id=uuid.uuid4(),  # Генерируем уникальный ID
+            parsed_buttons: list[list[InlineButton]] = []
+            if buttons:
+                parsed_buttons = [
+                    [InlineButton(**b) for b in row]
+                    for row in buttons
+                ]
+            replies.append(BotReplyMessage(
+                message_id=uuid.uuid4(),
                 text=text or "",
-                buttons=[
-                    [ButtonSchema(**b) for b in row]
-                    for row in (buttons or [])
-                ],
-                attachment_url=attachment_url,
+                buttons=parsed_buttons,
+                attachment_object_key=attachment_object_key,
+                attachment_file_name=attachment_file_name,
+                attachment_content_type=attachment_content_type,
             ))
 
-    return messages, reply
+    return replies, reply
 
 
-@bot_router.post("/message", response_model=BotResponse)
-async def handle_message(
-    body: IncomingMessage,
-    current_user: User = Depends(get_current_user_from_token),
-    db: AsyncSession = Depends(get_db),
-):
-    messages, reply_fn = _make_reply_collector()
-    message_service = get_message_service(db)
-    
-    # 1. Гарантируем существование топика чата
-    await ensure_topic_exists(db, current_user.user_id)
-    
-    # 2. Сохраняем входящее сообщение пользователя
-    user_message_id = uuid.uuid4()
-    await message_service.message_dal.create_message(
-        topic_id=current_user.user_id,
-        message_id=user_message_id,
-        text=body.text,
-        author_id=current_user.user_id,
-        # has_attachment=False
+async def _dispatch_and_save(
+    ctx: MessageContext | CallbackContext,
+    replies: list[BotReplyMessage],
+    message_service: MessageService,
+    user_id: uuid.UUID,
+) -> list[MessageResponse]:
+    await _dispatcher.dispatch(ctx)
+    saved = await message_service.save_bot_replies(
+        user_id=user_id,
+        bot_author_id=BOT_AUTHOR_ID,
+        replies=replies,
     )
-    
-    # 3. Передаем контекст в диспетчер сценариев/опросов
+    return [await message_service._enrich_message(msg) for msg in saved]
+
+
+@bot_router.post("/message", response_model=BotSyncResponse)
+async def handle_message(
+    body: UserMessageCreate,
+    current_user: User = Depends(get_current_user_from_token),
+    message_service: MessageService = Depends(get_message_service),
+):
+    await message_service.ensure_topic_exists(current_user.user_id)
+    await message_service.save_user_message(current_user.user_id, body.text)
+
+    replies, reply_fn = _make_reply_collector()
     ctx = MessageContext(
         user_id=current_user.user_id,
         text=body.text,
-        extra={
-            "redis": _redis_client,
-            "reply": reply_fn,
-            "message_service": message_service,
-        },
+        extra={"redis": _redis_client, "reply": reply_fn, "s3_service": _s3_service},
     )
-    await _dispatcher.dispatch(ctx)
-    
-    await save_bot_responses(db, message_service, current_user.user_id, messages)
-    await db.commit()  # Фиксируем трансляцию в БД
-    return BotResponse(messages=messages)
+
+    response_messages = await _dispatch_and_save(ctx, replies, message_service, current_user.user_id)
+    await message_service.message_dal.db_session.commit()
+    return BotSyncResponse(messages=response_messages)
 
 
-@bot_router.post("/callback", response_model=BotResponse)
+@bot_router.post("/callback", response_model=BotSyncResponse)
 async def handle_callback(
-    body: IncomingCallback,
+    body: UserCallbackTrigger,
     current_user: User = Depends(get_current_user_from_token),
-    db: AsyncSession = Depends(get_db),
+    message_service: MessageService = Depends(get_message_service),
 ):
-    messages, reply_fn = _make_reply_collector()
-    message_service = get_message_service(db)
-    
-    await ensure_topic_exists(db, current_user.user_id)
-    
+    await message_service.ensure_topic_exists(current_user.user_id)
+
+    replies, reply_fn = _make_reply_collector()
     ctx = CallbackContext(
         user_id=current_user.user_id,
         payload=body.payload,
-        extra={
-            "redis": _redis_client,
-            "reply": reply_fn,
-            "message_service": message_service
-        },
+        extra={"redis": _redis_client, "reply": reply_fn, "s3_service": _s3_service},
     )
-    await _dispatcher.dispatch(ctx)
-    
-    await save_bot_responses(db, message_service, current_user.user_id, messages)
-    await db.commit()
-    return BotResponse(messages=messages)
 
-@bot_router.get("/history", response_model=list[BotHistoryMessageSchema])
+    response_messages = await _dispatch_and_save(ctx, replies, message_service, current_user.user_id)
+    await message_service.message_dal.db_session.commit()
+    return BotSyncResponse(messages=response_messages)
+
+
+@bot_router.get("/history", response_model=list[MessageResponse])
 async def get_bot_history(
     limit: int = 50,
+    before_message_id: Optional[uuid.UUID] = None,
     current_user: User = Depends(get_current_user_from_token),
-    db: AsyncSession = Depends(get_db),
+    message_service: MessageService = Depends(get_message_service),
 ):
-    """
-    Получение истории сообщений текущего пользователя с ботом.
-    Так как для бота topic_id равен user_id пользователя, получаем историю по его ID.
-    """
-    message_service = get_message_service(db)
-    
-    # Вызываем метод получения сообщений из вашего SQLAlchemyMessageDAL
-    # (Название метода может немного отличаться, сверьтесь с вашим `message_dal`)
-    messages = await message_service.topic_dal.get_last_messages_of_topic(
-        topic_id=current_user.user_id,
-        limit=limit
+    return await message_service.get_bot_history(
+        user_id=current_user.user_id,
+        limit=limit,
+        before_message_id=before_message_id,
     )
-    
-    return messages
 
+
+@bot_router.get("/updates", response_model=list[MessageResponse])
+async def get_bot_updates(
+    since_message_id: uuid.UUID,
+    current_user: User = Depends(get_current_user_from_token),
+    message_service: MessageService = Depends(get_message_service),
+):
+    """Polling-эндпоинт. Фронтенд передаёт ID последнего известного сообщения."""
+    return await message_service.get_updates(
+        user_id=current_user.user_id,
+        since_message_id=since_message_id,
+    )

@@ -1,7 +1,6 @@
 import uuid
 
 from messenger.db import AbstractTopicDAL
-from messenger.schemas import UserID
 
 
 class TopicService:
@@ -15,8 +14,8 @@ class TopicService:
     def get_last_messages_of_topic(self, topic_id: uuid.UUID, limit: int = 30):
         return self.dal.get_last_messages_of_topic(topic_id, limit)
 
-    def get_topics_by_user(self, body: UserID):
-        return self.dal.get_topics_by_user(body.user_id)
+    # def get_topics_by_user(self, body: UserID):
+    #     return self.dal.get_topics_by_user(body.user_id)
 
     # def get_users_of_topic(self, body: TopicID):
     #     return self.dal.get_users_of_topic(body.topic_id)
