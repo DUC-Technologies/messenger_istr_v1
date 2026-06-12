@@ -12,7 +12,7 @@ class CreateMessage(BaseModel):
     topic_id: UUID4
     text: str
     author_id: UUID4
-    has_attachment: bool = False
+    # has_attachment: bool = False
 
 
 class UpdateMessage(MessageID):
@@ -25,7 +25,7 @@ class ShowMessage(BaseModel):
     text: str
     created_at: datetime
     author_id: UUID4
-    has_attachment: bool
+    # has_attachment: bool
 
     class Config:
         from_attributes = True

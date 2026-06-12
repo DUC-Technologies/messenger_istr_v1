@@ -24,7 +24,7 @@ class MessageService:
             message_id=message_id,
             text=text,
             author_id=author_id,
-            has_attachment=False,
+            # has_attachment=False,
         )
         
         await self.message_dal.db_session.commit()
@@ -38,7 +38,7 @@ class MessageService:
             message_id=message_id,
             text=text,
             author_id=author_id,
-            has_attachment=False,
+            # has_attachment=False,
         )
 
     async def get_message_by_id(self, body: MessageID):

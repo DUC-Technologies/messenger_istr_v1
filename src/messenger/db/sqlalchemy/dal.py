@@ -19,14 +19,16 @@ class SQLAlchemyMessageDAL(AbstractMessageDAL):
         message_id: uuid.UUID,
         text: str,
         author_id: uuid.UUID,
-        has_attachment: bool,
+        buttons: list[list[dict]] | None = None,
+        # has_attachment: bool,
     ) -> Message:
         new_message = Message(
             topic_id=topic_id,
             message_id=message_id,
             text=text,
             author_id=author_id,
-            has_attachment=has_attachment
+            buttons=buttons,
+            # has_attachment=has_attachment
         )
         self.db_session.add(new_message)
         await self.db_session.flush() 

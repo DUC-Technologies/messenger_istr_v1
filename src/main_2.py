@@ -21,7 +21,7 @@ async def startup():
     init_bot(dispatcher=dp, redis_client=redis_client)
 
 
-app.include_router(messenger_router, prefix="/messenger")
+# app.include_router(messenger_router, prefix="/messenger")
 app.include_router(user_router, prefix="/user", tags=["user"])
 app.include_router(login_router, prefix="/login", tags=["login"])
 app.include_router(bot_router)

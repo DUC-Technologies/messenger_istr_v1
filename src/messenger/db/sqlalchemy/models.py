@@ -1,6 +1,8 @@
 import datetime
 import uuid
+from typing import Any
 from sqlalchemy import UUID, String, Integer, Text, DateTime, ForeignKey, Boolean
+from sqlalchemy.dialects.postgresql import JSONB 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.session import Base
@@ -33,7 +35,7 @@ class Message(Base):
         index=True
     )
     is_edited: Mapped[bool] = mapped_column(Boolean, default=False)
-    # has_attachment: Mapped[bool] = mapped_column(Boolean, default=False)
+    buttons: Mapped[list[list[dict[str, Any]]] | None] = mapped_column(JSONB, nullable=True)
 
     topic = relationship("Topic", back_populates="messages")
     
