@@ -1,43 +1,43 @@
-from uuid import UUID
+# from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends
+# from fastapi import APIRouter, Body, Depends
 
-from auth.models import User
-from auth.services.auth import get_current_user_from_token
-from messenger import MessageService
-from messenger import TopicService
-from dependencies import get_message_service, get_topic_service
-from messenger.schemas import (
-    CreateMessage, ShowMessage, MessageID, UpdateMessage,
-    CreateTopic, TopicID, TopicLimit, ShowTopic, ShowTopicWithLastMessage, ShowUserOfTopic, UserID, AddUserToTopic
-)
+# from auth.models import User
+# from auth.services.auth import get_current_user_from_token
+# from messenger import MessageService
+# from messenger import TopicService
+# from dependencies import get_message_service, get_topic_service
+# from messenger.schemas import (
+#     CreateMessage, ShowMessage, MessageID, UpdateMessage,
+#     CreateTopic, TopicID, TopicLimit, ShowTopic, ShowTopicWithLastMessage, ShowUserOfTopic, UserID, AddUserToTopic
+# )
 
-messenger_router = APIRouter()
-
-
-@messenger_router.post("/messages/", response_model=ShowMessage, tags=["Мessages"])
-async def send_message_to_bot(
-    text: str, 
-    service: MessageService = Depends(get_message_service),
-    current_user: User = Depends(get_current_user_from_token)):
-    return await service.send_message_to_bot(author_id=current_user, text=text)
+# messenger_router = APIRouter()
 
 
-@messenger_router.get("/messages/{topic_id}/{message_id}", response_model=ShowMessage, tags=["Мessages"])
-async def get_message(
-    topic_id: UUID, message_id: UUID, 
-    service: MessageService = Depends(get_message_service)
-    ):
-    return await service.get_message_by_id(body=MessageID(topic_id=topic_id, message_id=message_id))
+# @messenger_router.post("/messages/", response_model=ShowMessage, tags=["Мessages"])
+# async def send_message_to_bot(
+#     text: str, 
+#     service: MessageService = Depends(get_message_service),
+#     current_user: User = Depends(get_current_user_from_token)):
+#     return await service.send_message_to_bot(author_id=current_user, text=text)
 
 
-@messenger_router.get("/topics/{topic_id}/messages", response_model=list[ShowMessage], tags=["Мessages"])
-async def get_last_user_messages_with_bot(
-    limit: int = 30, 
-    current_user: User = Depends(get_current_user_from_token),
-    service: TopicService = Depends(get_topic_service)
-    ):
-    return await service.get_last_messages_of_topic(topic_id=current_user.user_id, limit=limit)
+# @messenger_router.get("/messages/{topic_id}/{message_id}", response_model=ShowMessage, tags=["Мessages"])
+# async def get_message(
+#     topic_id: UUID, message_id: UUID, 
+#     service: MessageService = Depends(get_message_service)
+#     ):
+#     return await service.get_message_by_id(body=MessageID(topic_id=topic_id, message_id=message_id))
+
+
+# @messenger_router.get("/topics/{topic_id}/messages", response_model=list[ShowMessage], tags=["Мessages"])
+# async def get_last_user_messages_with_bot(
+#     limit: int = 30, 
+#     current_user: User = Depends(get_current_user_from_token),
+#     service: TopicService = Depends(get_topic_service)
+#     ):
+#     return await service.get_last_messages_of_topic(topic_id=current_user.user_id, limit=limit)
 
 
 # @messenger_router.put("/messages/", response_model=ShowMessage, tags=["Мessages"])
