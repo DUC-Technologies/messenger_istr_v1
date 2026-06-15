@@ -15,6 +15,7 @@ class UserMessageCreate(BaseModel):
 
 class UserCallbackTrigger(BaseModel):
     payload: dict[str, Any]
+    message_id: uuid.UUID
 
 
 # --- Компоненты UI ---

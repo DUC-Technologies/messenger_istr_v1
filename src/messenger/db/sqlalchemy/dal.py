@@ -22,6 +22,19 @@ class SQLAlchemyMessageDAL(AbstractMessageDAL):
         buttons: list[list[dict]] | None = None,
         attachments: list[dict[str, Any]] | None = None,
     ) -> Message:
+        
+        existing_msg = await self.db_session.get(Message, message_id)
+        
+        if existing_msg:
+            existing_msg.text = text
+            existing_msg.buttons = buttons
+            existing_msg.attachments = attachments
+            if hasattr(existing_msg, "is_edited"):
+                existing_msg.is_edited = True
+                
+            await self.db_session.flush()
+            return existing_msg
+        
         new_message = Message(
             topic_id=topic_id,
             message_id=message_id,
