@@ -1,13 +1,17 @@
 import uuid
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Security, status
+from fastapi.security import APIKeyHeader
+from pydantic import BaseModel
 import redis.asyncio as aioredis
 
 from auth.models import User
 from auth.services.auth import get_current_user_from_token
 from bot_engine import Dispatcher, MessageContext, CallbackContext
+from bot_engine.keyboard_parser import parse_vk_reply_markup
 from dependencies import get_message_service
+from messenger.schemas.attachments import AttachmentInput, AttachmentMeta, SendMessageRequest
 from messenger.schemas.bot import (
     UserMessageCreate,
     UserCallbackTrigger,
@@ -23,7 +27,7 @@ bot_router = APIRouter(prefix="/bot", tags=["bot"])
 
 _redis_client: aioredis.Redis | None = None
 _dispatcher: Dispatcher | None = None
-_s3_service = None  # S3StorageService — тип не импортируем здесь, чтобы избежать циклов
+_s3_service = None
 
 BOT_AUTHOR_ID = uuid.UUID("9e31a6e6-7af8-44d5-aca2-f1224fd80061")
 
@@ -49,7 +53,6 @@ def _make_reply_collector() -> tuple[list[BotReplyMessage], Any]:
         if screen_payloads is not None:
             for sp in screen_payloads:
                 replies.append(BotReplyMessage(
-                    # ИСПРАВЛЕНО: берем message_id из ScreenPayload, если он задан
                     message_id=sp.message_id if hasattr(sp, "message_id") and sp.message_id else uuid.uuid4(),
                     text=sp.text,
                     buttons=[
@@ -58,7 +61,6 @@ def _make_reply_collector() -> tuple[list[BotReplyMessage], Any]:
                     ],
                 ))
         else:
-            # Для обычных текстовых сообщений оставляем генерацию нового UUID
             parsed_buttons: list[list[InlineButton]] = []
             if buttons:
                 parsed_buttons = [
@@ -163,3 +165,71 @@ async def get_bot_updates(
         user_id=current_user.user_id,
         since_message_id=since_message_id,
     )
+    
+
+API_KEY_NAME = "X-API-Key"
+SECURE_API_KEY = "duc_messenger_secure_token_2026_xYz777" 
+
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
+
+async def verify_api_key(api_key: str = Security(api_key_header)):
+    if api_key != SECURE_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Неверный или отсутствующий API-ключ (X-API-Key)."
+        )
+    return api_key
+    
+
+@bot_router.post("/send_message_to_user", dependencies=[Depends(verify_api_key)])
+async def send_message_to_user(
+    body: SendMessageRequest,
+    message_service: MessageService = Depends(get_message_service)
+) -> bool:
+    try:
+        new_message_id = uuid.uuid4()
+        internal_buttons = parse_vk_reply_markup(body.reply_markup)
+
+        # Конвертируем AttachmentInput во внутренний контракт AttachmentMeta
+        processed_attachments = []
+        
+        def append_attachment(att: AttachmentInput, content_type: str):
+            # Строго соблюдаем контракт AttachmentMeta: id, file_name, content_type, object_key
+            meta = AttachmentMeta(
+                id=str(uuid.uuid4()),
+                file_name=att.name,
+                content_type=content_type,
+                object_key=att.url  # Внешний URL пишем в object_key, как ожидает история
+            )
+            # Сериализуем в словарь для корректного сохранения в JSONB базы данных
+            processed_attachments.append(meta.model_dump())
+
+        if body.pics:
+            append_attachment(body.pics, "image/jpeg")  # Лучше указать mime-type, чтобы фронтенд/история не падали
+        if body.audio:
+            append_attachment(body.audio, "audio/mpeg")
+        if body.attachments:
+            for att in body.attachments:
+                append_attachment(att, "application/octet-stream")
+
+        # Передаем управление в MessageService. 
+        # Передаем уже сформированные словари в параметр attachments.
+        await message_service.save_bot_message(
+            user_id=body.chat_id,
+            message_id=new_message_id,
+            bot_author_id=BOT_AUTHOR_ID,
+            text=body.text,
+            buttons=internal_buttons,
+            attachments=processed_attachments,
+        )
+
+        # Фиксируем транзакцию, чтобы сообщение появилось в БД
+        await message_service.message_dal.db_session.commit()
+
+        return True
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"Ошибка на стороне сервиса сообщений: {str(e)}"
+        )

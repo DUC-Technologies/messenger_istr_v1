@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 from uuid import UUID
+import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -13,13 +14,13 @@ class AbstractMessageDAL(ABC):
 
     @abstractmethod
     async def create_message(
-            self,
-            topic_id: UUID,
-            message_id: UUID,
-            text: str,
-            author_id: UUID,
-            buttons: list[list[dict[str, Any]]] | None = None,
-            # has_attachment: bool,
+        self,
+        topic_id: uuid.UUID,
+        message_id: uuid.UUID,
+        text: str,
+        author_id: uuid.UUID,
+        buttons: list[list[dict]] | None = None,
+        attachments: list[dict[str, Any]] | None = None,
     ):
         pass
 

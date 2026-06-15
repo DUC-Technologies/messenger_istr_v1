@@ -22,7 +22,8 @@ class SQLAlchemyMessageDAL(AbstractMessageDAL):
         buttons: list[list[dict]] | None = None,
         attachments: list[dict[str, Any]] | None = None,
     ) -> Message:
-        
+
+
         existing_msg = await self.db_session.get(Message, message_id)
         
         if existing_msg:

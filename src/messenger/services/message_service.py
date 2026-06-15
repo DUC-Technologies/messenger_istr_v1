@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 from messenger.db import AbstractMessageDAL, AbstractTopicDAL
 from messenger.db.sqlalchemy.dal import SQLAlchemyMessageDAL
@@ -97,16 +97,21 @@ class MessageService:
         return [await self._enrich_message(msg) for msg in messages]
 
     async def _enrich_message(self, msg: Message) -> MessageResponse:
-        """Конвертирует ORM-объект в MessageResponse, проставляя presigned URLs на вложения."""
+        """Конвертирует ORM-объект в MessageResponse, учитывая внешние ссылки."""
         attachment_responses: list[AttachmentResponse] = []
         if msg.attachments:
             for raw in msg.attachments:
                 meta = AttachmentMeta(**raw)
-                url = await self.s3_service.generate_presigned_url(
-                    bucket=settings.S3_BUCKET_REPORTS,
-                    object_key=meta.object_key,
-                    expires_in=settings.S3_PRESIGNED_URL_EXPIRES,
-                )
+                
+                if meta.object_key.startswith(("http://", "https://")):
+                    url = meta.object_key
+                else:
+                    url = await self.s3_service.generate_presigned_url(
+                        bucket=settings.S3_BUCKET_REPORTS,
+                        object_key=meta.object_key,
+                        expires_in=settings.S3_PRESIGNED_URL_EXPIRES,
+                    )
+                
                 attachment_responses.append(
                     AttachmentResponse(
                         id=meta.id,
@@ -118,10 +123,7 @@ class MessageService:
 
         buttons: list[list[InlineButton]] = []
         if msg.buttons:
-            buttons = [
-                [InlineButton(**btn) for btn in row]
-                for row in msg.buttons
-            ]
+            buttons = [[InlineButton(**btn) for btn in row] for row in msg.buttons]
 
         return MessageResponse(
             message_id=msg.message_id,
@@ -132,3 +134,27 @@ class MessageService:
             buttons=buttons,
             attachments=attachment_responses,
         )
+        
+    async def save_bot_message(
+        self,
+        user_id: uuid.UUID,
+        message_id: uuid.UUID,
+        bot_author_id: uuid.UUID,
+        text: str,
+        buttons: list[list[dict]] | None,
+        attachments: list[dict] | None = None,
+    ) -> bool:
+        """
+        Сохраняет сообщение от бота, переданное через API-эндпоинт.
+        """
+        await self.ensure_topic_exists(user_id)
+        await self.message_dal.create_message(
+            topic_id=user_id,
+            message_id=message_id,
+            text=text,
+            author_id=bot_author_id,
+            buttons=buttons,
+            attachments=attachments,
+        )
+        return True
+    
