@@ -37,12 +37,14 @@ class UserSession:
     def move_next(self) -> bool:
         if self.current_screen_idx < self.total_screens - 1:
             self.current_screen_idx += 1
+            self.clear_message_tracking()  # Очищаем старый экран
             return True
         return False
 
     def move_prev(self) -> bool:
         if self.current_screen_idx > 0:
             self.current_screen_idx -= 1
+            self.clear_message_tracking()  # Очищаем старый экран
             return True
         return False
 
@@ -73,7 +75,7 @@ class UserSession:
     def from_json(cls, json_str: str) -> "UserSession":
         """Восстанавливает объект UserSession из JSON-строки, полученной из Redis."""
         data = json.loads(json_str)
-        
+
         screens = [
             SurveyScreen(
                 block_name=s["block_name"],
@@ -81,11 +83,12 @@ class UserSession:
             )
             for s in data["screens"]
         ]
-        
+
         return cls(
             screens=screens,
             current_screen_idx=data["current_screen_idx"],
             results=data["results"],
-            active_message_ids=data["active_message_ids"],
-            q_to_msg_map={k: int(v) for k, v in data["q_to_msg_map"].items()}
+            active_message_ids=data.get("active_message_ids", []),
+            # ИСПРАВЛЕНО: приводим к str, так как ID сообщений у нас — строковые представления UUID
+            q_to_msg_map={k: str(v) for k, v in data.get("q_to_msg_map", {}).items()}
         )

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
+import uuid
 from survey.models import Question
 
 
@@ -13,7 +14,8 @@ class Button:
 @dataclass(frozen=True)
 class ScreenPayload:
     text: str
-    buttons: list[list[Button]]  # rows of buttons
+    buttons: list[list[Button]]
+    message_id: uuid.UUID
 
 
 class SurveyPresenter:
@@ -28,6 +30,7 @@ class SurveyPresenter:
         current_idx: int,
         total_screens: int,
         global_idx: int,
+        message_id: uuid.UUID,  # ДОБАВЛЕНО: принимаем ID из сервиса
     ) -> ScreenPayload:
         lines = []
         if is_first:
@@ -54,4 +57,4 @@ class SurveyPresenter:
                 nav_buttons.append(Button(label="Далее ➡️", payload={"act": "next"}))
 
         rows = option_rows + ([nav_buttons] if nav_buttons else [])
-        return ScreenPayload(text="\n".join(lines), buttons=rows)
+        return ScreenPayload(text="\n".join(lines), buttons=rows, message_id=message_id)

@@ -20,6 +20,13 @@ def build_screen_payloads(session: UserSession) -> list[ScreenPayload]:
 
     payloads = []
     for idx, q in enumerate(screen.questions):
+        if q.id not in session.q_to_msg_map:
+            msg_id = uuid.uuid4()
+            session.q_to_msg_map[q.id] = str(msg_id)
+            session.active_message_ids.append(str(msg_id))
+        
+        current_msg_id = uuid.UUID(session.q_to_msg_map[q.id])
+
         payloads.append(SurveyPresenter.render_question(
             q=q,
             block_name=screen.block_name,
@@ -29,9 +36,9 @@ def build_screen_payloads(session: UserSession) -> list[ScreenPayload]:
             current_idx=session.current_screen_idx,
             total_screens=session.total_screens,
             global_idx=start_global_idx + idx,
+            message_id=current_msg_id,  # Передаем стабильный ID
         ))
     return payloads
-
 
 async def get_user_session(redis_client, user_id: uuid.UUID) -> Optional[UserSession]:
     data = await redis_client.get(f"session:{user_id}")

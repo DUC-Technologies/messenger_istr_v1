@@ -93,6 +93,11 @@ async def on_next(ctx: CallbackContext):
         await reply(text=f"⚠️ Заполните все ответы! Остались вопросы №: {missing}", buttons=[])
         return
 
+    # Сохраняем ID сообщений старого блока перед тем, как переключить экран и стереть их
+    old_message_ids = list(session.active_message_ids)
+    # TODO: Если ваш протокол поддерживает системные события (например, 'delete_messages'), 
+    # можно передать старые ID на фронтенд для их очистки.
+
     session.move_next()
     payloads = build_screen_payloads(session)
     await reply(text=None, buttons=None, screen_payloads=payloads)

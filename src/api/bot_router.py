@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends
 import redis.asyncio as aioredis
@@ -35,11 +35,7 @@ def init_bot(dispatcher: Dispatcher, redis_client: aioredis.Redis, s3_service) -
     _s3_service = s3_service
 
 
-def _make_reply_collector() -> tuple[list[BotReplyMessage], any]:
-    """
-    Возвращает список накопленных ответов бота и функцию reply для хэндлеров.
-    Хэндлеры вызывают reply(...), роутер затем передаёт список в MessageService.
-    """
+def _make_reply_collector() -> tuple[list[BotReplyMessage], Any]:
     replies: list[BotReplyMessage] = []
 
     async def reply(
@@ -53,7 +49,8 @@ def _make_reply_collector() -> tuple[list[BotReplyMessage], any]:
         if screen_payloads is not None:
             for sp in screen_payloads:
                 replies.append(BotReplyMessage(
-                    message_id=uuid.uuid4(),
+                    # ИСПРАВЛЕНО: берем message_id из ScreenPayload, если он задан
+                    message_id=sp.message_id if hasattr(sp, "message_id") and sp.message_id else uuid.uuid4(),
                     text=sp.text,
                     buttons=[
                         [InlineButton(label=b.label, payload=b.payload, selected=b.selected) for b in row]
@@ -61,6 +58,7 @@ def _make_reply_collector() -> tuple[list[BotReplyMessage], any]:
                     ],
                 ))
         else:
+            # Для обычных текстовых сообщений оставляем генерацию нового UUID
             parsed_buttons: list[list[InlineButton]] = []
             if buttons:
                 parsed_buttons = [
@@ -127,7 +125,12 @@ async def handle_callback(
     ctx = CallbackContext(
         user_id=current_user.user_id,
         payload=body.payload,
-        extra={"redis": _redis_client, "reply": reply_fn, "s3_service": _s3_service},
+        extra={
+            "redis": _redis_client, 
+            "reply": reply_fn, 
+            "s3_service": _s3_service,
+            "message_id": getattr(body, "message_id", None)
+        },
     )
 
     response_messages = await _dispatch_and_save(ctx, replies, message_service, current_user.user_id)
