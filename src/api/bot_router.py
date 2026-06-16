@@ -6,6 +6,9 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 import redis.asyncio as aioredis
 
+from dotenv import load_dotenv
+from envparse import Env
+
 from auth.models import User
 from auth.services.auth import get_current_user_from_token
 from bot_engine import Dispatcher, MessageContext, CallbackContext
@@ -168,7 +171,10 @@ async def get_bot_updates(
     
 
 API_KEY_NAME = "X-API-Key"
-SECURE_API_KEY = "duc_messenger_secure_token_2026_xYz777" 
+load_dotenv(override=False)
+env = Env()
+SECURE_API_KEY = env("SECURE_API_KEY")
+
 
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
 
